@@ -1,0 +1,7 @@
+# For each release tag, replace the hash with the SHA256 of the downloaded archive.
+# Example generation:
+# curl -fsSL https://github.com/mikenitso/pivpn/archive/refs/tags/v0.1.0.tar.gz -o repo.tar.gz
+# sha256sum repo.tar.gz
+#
+# Format required by bootstrap/install.sh:
+# <sha256>  repo.tar.gz

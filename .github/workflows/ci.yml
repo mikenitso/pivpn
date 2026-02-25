@@ -1,0 +1,19 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shell-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+      - name: Shellcheck
+        run: shellcheck bootstrap/install.sh scripts/provision.sh scripts/lib/*.sh
+      - name: shfmt
+        run: shfmt -d -i 2 -ci bootstrap/install.sh scripts/provision.sh scripts/lib/*.sh
