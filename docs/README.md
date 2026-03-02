@@ -29,3 +29,9 @@ sudo ./scripts/provision.sh rollback --to ssh_hardening_complete
 - Config backups: `/var/backups/pivpn-bootstrap/`
 
 Re-running `install` or `repair` converges to desired state and avoids destructive reset behavior.
+
+Security baseline includes:
+- SSH keys-only authentication
+- UFW + fail2ban
+- unattended security updates
+- IPv6 disabled via sysctl

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
+IPV6_SYSCTL_FILE="/etc/sysctl.d/99-pivpn-bootstrap.conf"
 
 ensure_admin_user() {
   local user="$1"
@@ -102,6 +103,17 @@ configure_unattended_upgrades() {
   systemctl enable --now unattended-upgrades
 }
 
+configure_disable_ipv6() {
+  backup_file_once "$IPV6_SYSCTL_FILE"
+  cat > "$IPV6_SYSCTL_FILE" <<'SYSCTL'
+# Managed by pivpn bootstrap
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+SYSCTL
+  chmod 644 "$IPV6_SYSCTL_FILE"
+  sysctl --system >/dev/null
+}
+
 verify_security_posture() {
   local failed=0
 
@@ -123,6 +135,14 @@ verify_security_posture() {
     info "fail2ban is active."
   else
     warn "fail2ban is not active."
+    failed=1
+  fi
+
+  if [[ "$(sysctl -n net.ipv6.conf.all.disable_ipv6 2>/dev/null || echo 0)" == "1" ]] && \
+     [[ "$(sysctl -n net.ipv6.conf.default.disable_ipv6 2>/dev/null || echo 0)" == "1" ]]; then
+    info "IPv6 is disabled (all/default)."
+  else
+    warn "IPv6 disable sysctl is not fully applied."
     failed=1
   fi
 

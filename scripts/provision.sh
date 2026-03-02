@@ -123,6 +123,7 @@ step_base_hardening() {
   configure_ufw "$WG_PORT"
   configure_fail2ban
   configure_unattended_upgrades
+  configure_disable_ipv6
 }
 
 step_pivpn() {
@@ -255,6 +256,10 @@ cmd_rollback() {
   if [[ -f "$latest_backup/_etc_fail2ban_jail.local" ]]; then
     cp "$latest_backup/_etc_fail2ban_jail.local" /etc/fail2ban/jail.local
     systemctl restart fail2ban || true
+  fi
+  if [[ -f "$latest_backup/_etc_sysctl.d_99-pivpn-bootstrap.conf" ]]; then
+    cp "$latest_backup/_etc_sysctl.d_99-pivpn-bootstrap.conf" /etc/sysctl.d/99-pivpn-bootstrap.conf
+    sysctl --system >/dev/null || true
   fi
 
   info "Rollback restore actions completed. Re-run verify and repair as needed."
