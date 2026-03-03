@@ -14,6 +14,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt
       - name: Shellcheck
-        run: shellcheck bootstrap/install.sh scripts/provision.sh scripts/lib/*.sh
+        run: shellcheck bootstrap/install.sh scripts/*.sh scripts/lib/*.sh
       - name: shfmt
-        run: shfmt -d -i 2 -ci bootstrap/install.sh scripts/provision.sh scripts/lib/*.sh
+        run: shfmt -d -i 2 -ci bootstrap/install.sh scripts/*.sh scripts/lib/*.sh
+      - name: Render DDNS units (dry-run)
+        run: |
+          ./scripts/install-cloudflare-ddns-systemd.sh install \
+            --dry-run \
+            --output-dir /tmp/cfddns-test \
+            --admin-user runner \
+            --zone example.com \
+            --subdomain vpn \
+            --skip-cloudflare-check
+      - name: Verify systemd unit syntax
+        run: |
+          systemd-analyze verify \
+            /tmp/cfddns-test/etc/systemd/system/cloudflare-ddns.service \
+            /tmp/cfddns-test/etc/systemd/system/cloudflare-ddns.timer

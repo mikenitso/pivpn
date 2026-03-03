@@ -22,6 +22,22 @@ sudo ./scripts/provision.sh repair
 sudo ./scripts/provision.sh rollback --to ssh_hardening_complete
 ```
 
+## Cloudflare DDNS (systemd, no Docker)
+
+```bash
+sudo ./scripts/install-cloudflare-ddns-systemd.sh install
+sudo ./scripts/install-cloudflare-ddns-systemd.sh verify
+```
+
+Reference: `docs/CLOUDFLARE_DDNS.md`
+
+Dry-run validation on non-systemd hosts:
+
+```bash
+./scripts/install-cloudflare-ddns-systemd.sh install --dry-run --output-dir /tmp/cfddns-test --admin-user pi --zone example.com --subdomain vpn --skip-cloudflare-check
+find /tmp/cfddns-test -maxdepth 5 -type f | sort
+```
+
 ## Safety Model
 
 - Checkpoint state: `/var/lib/pivpn-bootstrap/state.json`
