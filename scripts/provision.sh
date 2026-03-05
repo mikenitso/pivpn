@@ -86,17 +86,29 @@ step_preflight() {
 }
 
 step_user_setup() {
-  local admin_user ssh_key
+  local admin_user ssh_key suggested_user
+
+  suggested_user="$(state_get_field admin_user || true)"
+  if [[ -z "$suggested_user" && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    suggested_user="$SUDO_USER"
+  fi
+  if [[ -z "$suggested_user" ]]; then
+    suggested_user="pi"
+  fi
 
   while true; do
-    admin_user="$(prompt_nonempty "Enter admin username")"
+    admin_user="$(prompt_default "Enter existing admin username (created during imaging)" "$suggested_user")"
     if is_valid_username "$admin_user"; then
-      break
+      if id "$admin_user" >/dev/null 2>&1; then
+        break
+      fi
+      warn "User '$admin_user' does not exist on this host."
+    else
+      warn "Invalid username format."
     fi
-    warn "Invalid username format."
   done
 
-  ensure_admin_user "$admin_user"
+  ensure_existing_admin_user "$admin_user"
 
   while true; do
     ssh_key="$(prompt_nonempty "Paste SSH public key for $admin_user")"
@@ -124,6 +136,7 @@ step_base_hardening() {
   configure_fail2ban
   configure_unattended_upgrades
   configure_disable_ipv6
+  configure_disable_wifi
 }
 
 step_pivpn() {
@@ -260,6 +273,12 @@ cmd_rollback() {
   if [[ -f "$latest_backup/_etc_sysctl.d_99-pivpn-bootstrap.conf" ]]; then
     cp "$latest_backup/_etc_sysctl.d_99-pivpn-bootstrap.conf" /etc/sysctl.d/99-pivpn-bootstrap.conf
     sysctl --system >/dev/null || true
+  fi
+  if [[ -f "$latest_backup/_boot_firmware_config.txt" ]]; then
+    cp "$latest_backup/_boot_firmware_config.txt" /boot/firmware/config.txt || true
+  fi
+  if [[ -f "$latest_backup/_boot_config.txt" ]]; then
+    cp "$latest_backup/_boot_config.txt" /boot/config.txt || true
   fi
 
   info "Rollback restore actions completed. Re-run verify and repair as needed."

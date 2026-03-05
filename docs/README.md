@@ -47,7 +47,8 @@ find /tmp/cfddns-test -maxdepth 5 -type f | sort
 Re-running `install` or `repair` converges to desired state and avoids destructive reset behavior.
 
 Security baseline includes:
-- SSH keys-only authentication
+- SSH key and password authentication (root login disabled)
 - UFW + fail2ban
 - unattended security updates
 - IPv6 disabled via sysctl
+- Wi-Fi disabled (boot overlay + runtime block)

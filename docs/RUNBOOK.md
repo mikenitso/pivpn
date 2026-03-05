@@ -7,7 +7,7 @@ sudo ./scripts/provision.sh install
 ```
 
 Follow prompts for:
-- admin username
+- existing admin username (created during imaging)
 - SSH public key
 - VPN endpoint
 - WireGuard UDP port

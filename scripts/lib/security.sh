@@ -3,13 +3,13 @@
 SSHD_CONFIG="/etc/ssh/sshd_config"
 IPV6_SYSCTL_FILE="/etc/sysctl.d/99-pivpn-bootstrap.conf"
 
-ensure_admin_user() {
+ensure_existing_admin_user() {
   local user="$1"
-  if id "$user" >/dev/null 2>&1; then
-    info "User $user already exists."
-  else
-    adduser --disabled-password --gecos "" "$user"
+  if ! id "$user" >/dev/null 2>&1; then
+    error "User $user does not exist. Create it during imaging or manually before running provision."
+    return 1
   fi
+  info "Using existing user $user."
   usermod -aG sudo "$user"
   install -d -m 700 -o "$user" -g "$user" "/home/$user/.ssh"
 }
@@ -46,7 +46,7 @@ harden_ssh() {
   tmp="$(mktemp)"
   cp "$SSHD_CONFIG" "$tmp"
 
-  set_sshd_option "PasswordAuthentication" "no" "$tmp"
+  set_sshd_option "PasswordAuthentication" "yes" "$tmp"
   set_sshd_option "PermitRootLogin" "no" "$tmp"
   set_sshd_option "PubkeyAuthentication" "yes" "$tmp"
 
@@ -114,13 +114,43 @@ SYSCTL
   sysctl --system >/dev/null
 }
 
+detect_boot_config_path() {
+  if [[ -f /boot/firmware/config.txt ]]; then
+    printf '%s\n' "/boot/firmware/config.txt"
+    return 0
+  fi
+  if [[ -f /boot/config.txt ]]; then
+    printf '%s\n' "/boot/config.txt"
+    return 0
+  fi
+  return 1
+}
+
+configure_disable_wifi() {
+  local boot_config
+  boot_config="$(detect_boot_config_path || true)"
+  if [[ -n "$boot_config" ]]; then
+    backup_file_once "$boot_config"
+    if ! grep -Eq '^[[:space:]]*dtoverlay=disable-wifi([[:space:]]*#.*)?$' "$boot_config"; then
+      printf '\n# Managed by pivpn bootstrap\ndtoverlay=disable-wifi\n' >> "$boot_config"
+    fi
+  else
+    warn "Boot config not found; cannot persistently disable Wi-Fi via dtoverlay."
+  fi
+
+  if command -v rfkill >/dev/null 2>&1; then
+    rfkill block wifi || true
+  fi
+  ip link set wlan0 down >/dev/null 2>&1 || true
+}
+
 verify_security_posture() {
   local failed=0
 
-  if grep -Eq '^PasswordAuthentication[[:space:]]+no' "$SSHD_CONFIG"; then
-    info "SSH password auth disabled."
+  if grep -Eq '^PasswordAuthentication[[:space:]]+yes' "$SSHD_CONFIG"; then
+    info "SSH password auth enabled."
   else
-    warn "SSH password auth may still be enabled."
+    warn "SSH password auth is not explicitly enabled."
     failed=1
   fi
 
@@ -144,6 +174,19 @@ verify_security_posture() {
   else
     warn "IPv6 disable sysctl is not fully applied."
     failed=1
+  fi
+
+  local boot_config
+  boot_config="$(detect_boot_config_path || true)"
+  if ip -o link show | awk -F': ' '{print $2}' | grep -q '^wlan'; then
+    if [[ -n "$boot_config" ]] && grep -Eq '^[[:space:]]*dtoverlay=disable-wifi([[:space:]]*#.*)?$' "$boot_config"; then
+      info "Wi-Fi disable overlay is set in ${boot_config}."
+    else
+      warn "Wi-Fi interface exists but disable overlay is not set in boot config."
+      failed=1
+    fi
+  else
+    info "No wlan interface detected."
   fi
 
   if id pi >/dev/null 2>&1; then

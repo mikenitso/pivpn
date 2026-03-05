@@ -1,17 +1,17 @@
 ## Secure, Minimal Raspberry Pi OS + PiVPN (WireGuard) Git-Based Interactive Provisioning Plan
 
 ### Summary
-Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstrap, then runs a local interactive installer on a fresh Raspberry Pi OS Lite host. The installer will configure a new admin user, lock down SSH, install PiVPN (WireGuard), apply balanced hardening (including fail2ban), enable unattended security updates, and produce auditable logs/config snapshots. The process is designed for repeatable “from scratch” setup with explicit confirmations, safe re-runs, and graceful failure recovery without requiring reimaging.
+Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstrap, then runs a local interactive installer on a fresh Raspberry Pi OS Lite host. The installer will use an existing admin user created during imaging, lock down SSH, install PiVPN (WireGuard), apply balanced hardening (including fail2ban), enable unattended security updates, and produce auditable logs/config snapshots. The process is designed for repeatable “from scratch” setup with explicit confirmations, safe re-runs, and graceful failure recovery without requiring reimaging.
 
 ### Scope and Success Criteria
 - Target host: fresh Raspberry Pi OS Lite (minimal install), intended for VPN server role only.
 - VPN stack: PiVPN with WireGuard only.
 - Network model: router UDP port forward to Pi, with router DHCP reservation for stable LAN IP.
-- Security baseline: balanced hardening, SSH keys only, disable default `pi` account after migration.
+- Security baseline: balanced hardening, SSH key + password auth (root login disabled), disable default `pi` account after migration.
 - Git workflow: one-liner remote bootstrap pinned to a release tag, checksum-verified before execution.
 - Success when:
-1. New sudo admin user exists and can SSH via key.
-2. Password SSH login is disabled.
+1. Existing admin user is validated, in sudo group, and can SSH via key.
+2. Password SSH login is enabled.
 3. `pi` account is locked/disabled.
 4. UFW is active with required allow rules.
 5. fail2ban is active with sshd jail enabled.
@@ -20,6 +20,7 @@ Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstr
 8. Run log + sanitized config snapshot are generated.
 9. Script can be re-run to converge partially configured hosts to desired state.
 10. Failed runs exit with a clear recovery message and preserve enough state to resume or rollback safely.
+11. Wi-Fi is disabled (persistent boot config + runtime interface block).
 
 ### Repository Design
 - `bootstrap/install.sh`
@@ -67,14 +68,14 @@ Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstr
    - Confirm running on intended minimal host.
    - Load prior state file if present and offer `resume`, `repair`, or `fresh install` behavior.
 2. User setup:
-   - Prompt for new admin username.
-   - Create user only if missing, add to `sudo`, create `.ssh`, set permissions.
+   - Prompt for existing admin username (created during imaging).
+   - Validate user exists, ensure `sudo` group membership, create `.ssh`, set permissions.
    - Prompt to paste at least one SSH public key (repeatable).
    - Validate key format before write and avoid duplicate keys.
    - Record checkpoint `user_setup_complete`.
 3. SSH hardening:
    - Backup `/etc/ssh/sshd_config`.
-   - Enforce `PasswordAuthentication no`, `PermitRootLogin no`, key auth on (idempotent edit strategy).
+   - Enforce `PasswordAuthentication yes`, `PermitRootLogin no`, key auth on (idempotent edit strategy).
    - Restart sshd and verify service healthy.
    - Auto-rollback ssh config backup if restart/health check fails.
    - Record checkpoint `ssh_hardening_complete`.
@@ -87,6 +88,7 @@ Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstr
    - Install and enable UFW with explicit rules: allow SSH, allow WireGuard UDP port.
    - Install and enable fail2ban (`sshd` jail).
    - Install `unattended-upgrades` and enable security auto-updates.
+   - Disable Wi-Fi persistently (`dtoverlay=disable-wifi`) and block runtime wireless interface.
    - Record checkpoint `base_hardening_complete`.
 6. PiVPN/WireGuard:
    - Install PiVPN only if not already installed; otherwise validate/fix config drift.
@@ -128,7 +130,7 @@ Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstr
    - Run `rollback --to <checkpoint>` and confirm host remains accessible.
    - `verify` on configured host.
 4. Security scenarios:
-   - Confirm SSH password login rejected.
+   - Confirm SSH password login accepted for authorized local users.
    - Confirm `pi` account is locked.
    - Confirm only required ports open.
    - Confirm fail2ban jail is active and banning works.
@@ -153,7 +155,7 @@ Build a GitHub-hosted provisioning repo that supports a secure one-liner bootstr
 - VPN protocol is WireGuard via PiVPN.
 - Exposure is via router UDP forwarding.
 - LAN stability uses router DHCP reservation, not static host networking.
-- SSH policy is keys-only.
+- SSH policy allows both key and password authentication (root login remains disabled).
 - New admin user is created and default `pi` is disabled.
 - Maintenance model is unattended security upgrades (no script-driven full update workflow).
 - Artifacts are logs + sanitized snapshot only (no bundled key backup).
