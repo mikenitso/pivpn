@@ -1,7 +1,15 @@
-# For each release tag, replace the hash with the SHA256 of the downloaded archive.
-# Example generation:
-# curl -fsSL https://github.com/mikenitso/pivpn/archive/refs/tags/v0.1.0.tar.gz -o repo.tar.gz
-# sha256sum repo.tar.gz
-#
-# Format required by bootstrap/install.sh:
-# <sha256>  repo.tar.gz
+# SHA256 checksums for release-critical files
+# format: <sha256>  <relative-path>
+9ab0329d5523d48d9b0f9f26200d13ace3ff6ad7ca023e405ca08a9ea27fd184  bootstrap/install.sh
+33dd803a42549f3535507faf1bec21d76d14efea296e07f146ab00ddd089ddde  config/defaults.env
+ad74e373cfcf9a06cdc976ea2d5b85d2f05f72f9dad7c7944ed08a4d4fa50094  scripts/cloudflare-ddns-update.sh
+142a930bd11da6c4eecf776e6816945538016045a4bee87881adeffd884244d7  scripts/install-cloudflare-ddns-systemd.sh
+9c270a95230440453375fcbc502ed6f5b1e23441a344deacf8e1e62236725b43  scripts/lib/artifacts.sh
+1597d872cd0987f3527d81cd5d870743e4b155f8858c522d1fa5827b8e21ec02  scripts/lib/network.sh
+e5de7f1cff4c15adf09aab320abebbba85803b1c9c9df3fd469f41c250549c8d  scripts/lib/pivpn.sh
+6373fcacdeee8beac907d81cae03e3a5319307b6ef7fff10e09f503828d89512  scripts/lib/security.sh
+2c4c4d64f129293dacbb3a3c4cd0b351d9da6411f18264e5fd28a8b70194a1ff  scripts/lib/state.sh
+88ce7ed7cf392ce4a83c53954935cd32bfdde87ea25f49f7366057e13b90473a  scripts/lib/system.sh
+7ecc9ae36ab3fbd656c1cacbd9dd21ee86a4b76844fb1cebbd23cbc2555ca30a  scripts/lib/ui.sh
+98a8348f83ef69dc65a4ac2acc5669b7cd52b130a309ae9af7bb2ab0ae34c31b  scripts/lib/validate.sh
+a16290fd7f2935fc8ff1485d5c9f559a88a194b08d16550da4a0ee6e9f7906fa  scripts/provision.sh

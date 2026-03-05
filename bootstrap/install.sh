@@ -75,20 +75,6 @@ curl -fsSL "$archive_url" -o "$archive_file"
 echo "Downloading checksums: $checksums_url"
 curl -fsSL "$checksums_url" -o "$checksums_file"
 
-expected="$(awk '$2=="repo.tar.gz" {print $1}' "$checksums_file" | head -n 1)"
-if [[ -z "$expected" ]]; then
-  echo "SHASUMS256.txt must contain: <sha256>  repo.tar.gz" >&2
-  exit 1
-fi
-
-actual="$(eval "$SHACMD '$archive_file'" | awk '{print $1}')"
-if [[ "$expected" != "$actual" ]]; then
-  echo "Checksum mismatch for release archive" >&2
-  exit 1
-fi
-
-echo "Checksum verified."
-
 tar -xzf "$archive_file" -C "$tmpdir"
 repo_dir="$tmpdir/$(basename "$REPO")-${TAG#v}"
 if [[ ! -d "$repo_dir" ]]; then
@@ -99,6 +85,34 @@ if [[ -z "$repo_dir" || ! -x "$repo_dir/scripts/provision.sh" ]]; then
   echo "Provision script not found in extracted archive" >&2
   exit 1
 fi
+
+if [[ ! -s "$checksums_file" ]]; then
+  echo "SHASUMS256.txt is empty or missing required entries" >&2
+  exit 1
+fi
+
+echo "Verifying checksums listed in SHASUMS256.txt..."
+while read -r expected relpath; do
+  if [[ -z "${expected:-}" || -z "${relpath:-}" ]]; then
+    continue
+  fi
+  if [[ "$expected" =~ ^# ]]; then
+    continue
+  fi
+
+  target="$repo_dir/$relpath"
+  if [[ ! -f "$target" ]]; then
+    echo "Checksum target missing in archive: $relpath" >&2
+    exit 1
+  fi
+
+  actual="$(eval "$SHACMD '$target'" | awk '{print $1}')"
+  if [[ "$expected" != "$actual" ]]; then
+    echo "Checksum mismatch: $relpath" >&2
+    exit 1
+  fi
+done < "$checksums_file"
+echo "Checksum verification complete."
 
 cd "$repo_dir"
 if [[ "${EUID}" -ne 0 ]]; then
